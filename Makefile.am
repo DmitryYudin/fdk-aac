@@ -39,12 +39,23 @@ libfdk_aac_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
     -export-symbols $(top_srcdir)/fdk-aac.sym
 
 if EXAMPLE
-bin_PROGRAMS = aac-enc$(EXEEXT)
+bin_PROGRAMS = aac-enc$(EXEEXT) aac-dec$(EXEEXT)
 
 aac_enc_LDADD = libfdk-aac.la
 aac_enc_SOURCES = aac-enc.c wavreader.c
 
-noinst_HEADERS = wavreader.h
+aac_dec_LDADD = libfdk-aac.la
+aac_dec_SOURCES = aac-dec.c wavwriter.c
+
+noinst_HEADERS = wavreader.h wavwriter.h
+
+if HAVE_LIBAVFORMAT
+bin_PROGRAMS += m4a-dec$(EXEEXT)
+
+m4a_dec_LDADD = $(libavformat_LIBS) $(libavcodec_LIBS) $(libavutil_LIBS) libfdk-aac.la
+m4a_dec_CFLAGS = $(libavformat_CFLAGS) $(libavcodec_CFLAGS) $(libavutil_CFLAGS)
+m4a_dec_SOURCES = m4a-dec.c wavwriter.c
+endif
 endif
 
 AACDEC_SRC = \
