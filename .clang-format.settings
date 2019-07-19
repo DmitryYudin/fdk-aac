@@ -1,0 +1,14 @@
+#
+# This is a shell script for the sourcing
+#
+LLVM_VER=5.0.2
+
+# regexp applied to a file path starting from the begging of the string till the end: ^${regexp}$
+# '.'  - any character
+# '*'  - repetition
+# '\.' - dot
+DIR_EXCLUDE="/ /\.build.* /win32/.* /ffmpeg/.*"
+
+
+
+
