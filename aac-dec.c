@@ -20,26 +20,93 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <getopt.h>
+
 #include "libAACdec/include/aacdecoder_lib.h"
 #include "wavwriter.h"
 
+static void usage()
+{ 
+    printf("aac-dec [-f format] [-h] input.mp4 output.wav \n" 
+        "Options:\n"
+        " -h, --help                    Print this help message\n"
+        " -f, --transport-format <n>    Transport format\n"
+        "                                 0: RAW (default, muxed into M4A)\n"
+        "                                 1: ADIF\n"
+        "                                 2: ADTS\n"
+        "                                 6: LATM MCP=1\n"
+        "                                 7: LATM MCP=0\n"
+        "                     default -> 10: LOAS/LATM (LATM within LOAS)\n"
+        " -d                            Dummy flag. For compatibility with aac_mrc\n"
+        " -o <output.wav>               Output file. For compatibility with aac_mrc\n"
+    );
+}
+
 int main(int argc, char *argv[]) {
-	const char *infile, *outfile;
-	FILE *in;
+	const char *infile = NULL, *outfile = NULL;
+	FILE *in = NULL;
 	void *wav = NULL;
 	int output_size;
-	uint8_t *output_buf;
-	int16_t *decode_buf;
-	HANDLE_AACDECODER handle;
+	uint8_t *output_buf = NULL;
+	int16_t *decode_buf = NULL;
+	HANDLE_AACDECODER handle = NULL;
 	int frame_size = 0;
+	int status = 0;
+	unsigned samples_decoded = 0;
 	if (argc < 3) {
-		fprintf(stderr, "%s in.aac out.wav\n", argv[0]);
+		usage();
 		return 1;
 	}
-	infile = argv[1];
-	outfile = argv[2];
 
-	handle = aacDecoder_Open(TT_MP4_ADTS, 1);
+	static const struct option long_options[] = {
+		{"help", no_argument, 0, 'h'},
+		{"transport-format", required_argument, 0, 'f'},
+		{0, 0, 0, 0},
+	};
+	int ch, n;
+	TRANSPORT_TYPE transport_format = TT_UNKNOWN;
+	while ((ch = getopt_long(argc, argv, "hf:o:", long_options, 0)) != EOF) {
+		switch (ch) {
+		case 'h':
+			return usage(), -1;
+		default:
+			return usage(), -1;
+		case 'f': // currently, only ATDS and LOAS are compatible with decoder (the reason is unknown)
+			if (sscanf(optarg, "%u", &n) != 1) {
+				fprintf(stderr, "invalid arg for transport-format\n");
+				return -1;
+			}
+			transport_format = (TRANSPORT_TYPE)n;
+			break;
+		case 'o':
+			outfile = optarg;
+			break;
+		}
+	}
+	while(argv[optind] != NULL) { // rest of options
+		if (infile == NULL) {
+			infile = argv[optind++];
+			continue;
+		}
+		if (outfile == NULL) {
+			outfile = argv[optind++];
+			continue;
+		}
+		fprintf(stderr, "Error: Too many options\n");
+	}
+	if (infile == NULL) {
+		fprintf(stderr, "Error: input file name not set\n");
+		return 1;
+	}
+	if (outfile == NULL) {
+		fprintf(stderr, "Error: output file name not set\n");
+		return 1;
+	}
+	if (transport_format == TT_UNKNOWN) {
+		transport_format = TT_MP4_LOAS;
+	}
+
+	handle = aacDecoder_Open(transport_format, 1);
 	in = fopen(infile, "rb");
 	if (!in) {
 		perror(infile);
@@ -56,39 +123,52 @@ int main(int argc, char *argv[]) {
 		UINT valid, packet_size;
 		AAC_DECODER_ERROR err;
 		n = fread(packet, 1, 150, in);
-		if (n <= 0)
-			break;
+		if (n <= 0) {
+			if(feof(in)) {
+				goto end;
+			}
+			fprintf(stderr, "Error: Failed reading input file: '%s'\n", infile);
+			status = 1;
+			goto end;
+		}
 		packet_size = n;
 		valid = packet_size;
 		err = aacDecoder_Fill(handle, &ptr, &packet_size, &valid);
 		if (err != AAC_DEC_OK) {
 			fprintf(stderr, "Fill failed: %x\n", err);
-			break;
+			status = 1;
+			goto end;
 		}
 		if (valid != 0) {
 			fprintf(stderr, "Unable to feed all %d input bytes, %d bytes left\n", n, valid);
+			status = 1;
+			goto end;
 		}
 		while (1) {
 			err = aacDecoder_DecodeFrame(handle, decode_buf, output_size / sizeof(INT_PCM), 0);
 			if (err == AAC_DEC_NOT_ENOUGH_BITS)
 				break;
 			if (err != AAC_DEC_OK) {
-				fprintf(stderr, "Decode failed: %x\n", err);
-				break;
+				fprintf(stderr, "Decode failed: 0x%x\n", err);
+				status = 1;
+				goto end;
 			}
 			if (!wav) {
 				CStreamInfo *info = aacDecoder_GetStreamInfo(handle);
 				if (!info || info->sampleRate <= 0) {
 					fprintf(stderr, "No stream info\n");
+					status = 1;
 					goto end;
 				}
 				frame_size = info->frameSize * info->numChannels;
 				// Note, this probably doesn't return channels > 2 in the right order for wav
 				wav = wav_write_open(outfile, info->sampleRate, 16, info->numChannels);
 				if (!wav) {
-					perror(outfile);
+					fprintf(stderr, "Error: Failed writing output file: '%s'\n", outfile);
+					status = 1;
 					goto end;
 				}
+				samples_decoded += frame_size;
 			}
 			for (i = 0; i < frame_size; i++) {
 				uint8_t* out = &output_buf[2*i];
@@ -99,12 +179,20 @@ int main(int argc, char *argv[]) {
 		}
 	}
 end:
-	free(output_buf);
-	free(decode_buf);
-	fclose(in);
+	if(samples_decoded == 0 && status == 0) {
+		fprintf(stderr, "Error: No samples decoded. Perhaps wrong input format.\n");
+		status = 1;
+	}
+	if(output_buf)
+		free(output_buf);
+	if (decode_buf)
+		free(decode_buf);
+	if (in)
+		fclose(in);
 	if (wav)
 		wav_write_close(wav);
-	aacDecoder_Close(handle);
-	return 0;
+	if(handle)
+		aacDecoder_Close(handle);
+	return status;
 }
 
