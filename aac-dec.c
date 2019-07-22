@@ -21,7 +21,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <getopt.h>
-
 #include "libAACdec/include/aacdecoder_lib.h"
 #include "wavwriter.h"
 
@@ -147,6 +146,8 @@ int main(int argc, char *argv[]) {
 		while (1) {
 			err = aacDecoder_DecodeFrame(handle, decode_buf, output_size / sizeof(INT_PCM), 0);
 			if (err == AAC_DEC_NOT_ENOUGH_BITS)
+				break;
+			if (err == AAC_DEC_TRANSPORT_SYNC_ERROR)
 				break;
 			if (err != AAC_DEC_OK) {
 				fprintf(stderr, "Decode failed: 0x%x\n", err);
