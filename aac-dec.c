@@ -117,11 +117,11 @@ int main(int argc, char *argv[]) {
 	decode_buf = (int16_t*) malloc(output_size);
 
 	while (1) {
-		uint8_t packet[10240], *ptr = packet;
+		uint8_t packet[32768/2], *ptr = packet;
 		int n, i;
 		UINT valid, packet_size;
 		AAC_DECODER_ERROR err;
-		n = fread(packet, 1, 150, in);
+		n = (int)fread(packet, 1, sizeof(packet), in);
 		if (n <= 0) {
 			if(feof(in)) {
 				goto end;
