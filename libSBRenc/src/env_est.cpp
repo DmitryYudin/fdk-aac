@@ -1298,6 +1298,13 @@ void FDKsbrEnc_extractSbrEnvelope2(
             &hEnvChan->encEnvData, &hEnvChan->sbrCodeEnvelope,
             &hEnvChan->sbrCodeNoiseFloor, hEnvChan->encEnvData.currentAmpResFF);
       }
+      if (ch == 1 && stereoMode == SBR_SWITCH_LRC) {
+        HANDLE_ENV_CHANNEL hEnvChanLeft = h_envChan[0];
+        if (hEnvChan->encEnvData.currentAmpResFF !=
+            hEnvChanLeft->encEnvData.currentAmpResFF) {
+          stereoMode = SBR_LEFT_RIGHT;
+        }
+      }
     } else {
       if (sbrHeaderData->sbr_amp_res != hEnvChan->encEnvData.init_sbr_amp_res) {
         FDKsbrEnc_InitSbrHuffmanTables(
