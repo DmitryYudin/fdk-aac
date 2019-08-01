@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
 	AVFormatContext *in = NULL;
 	AVStream *st = NULL;
 	void *wav = NULL;
-	int output_size, ret, i;
+	int output_size, ret;
 	uint8_t *output_buf;
 	int16_t *decode_buf;
 	HANDLE_AACDECODER handle;
@@ -46,8 +46,6 @@ int main(int argc, char *argv[]) {
 	infile = argv[1];
 	outfile = argv[2];
 
-	av_register_all();
-	avformat_network_init();
 	ret = avformat_open_input(&in, infile, NULL, NULL);
 #ifdef AVFMT_FLAG_KEEP_SIDE_DATA
 	in->flags |= AVFMT_FLAG_KEEP_SIDE_DATA;
@@ -58,7 +56,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "%s: %s\n", infile, buf);
 		return 1;
 	}
-	for (i = 0; i < in->nb_streams && !st; i++) {
+	for (unsigned i = 0; i < in->nb_streams && !st; i++) {
 		if (in->streams[i]->codec->codec_id == AV_CODEC_ID_AAC)
 			st = in->streams[i];
 	}
@@ -81,6 +79,8 @@ int main(int argc, char *argv[]) {
 	output_buf = (uint8_t*) malloc(output_size);
 	decode_buf = (int16_t*) malloc(output_size);
 
+	int status = 0;
+
 	while (1) {
 		int i;
 		UINT valid;
@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 		if (pkt.stream_index != st->index) {
-			av_free_packet(&pkt);
+			av_packet_unref(&pkt);
 			continue;
 		}
 
@@ -100,20 +100,23 @@ int main(int argc, char *argv[]) {
 		err = aacDecoder_Fill(handle, &pkt.data, &pkt.size, &valid);
 		if (err != AAC_DEC_OK) {
 			fprintf(stderr, "Fill failed: %x\n", err);
+			status = 1;
 			break;
 		}
 		err = aacDecoder_DecodeFrame(handle, decode_buf, output_size / sizeof(INT_PCM), 0);
-		av_free_packet(&pkt);
+		av_packet_unref(&pkt);
 		if (err == AAC_DEC_NOT_ENOUGH_BITS)
 			continue;
 		if (err != AAC_DEC_OK) {
 			fprintf(stderr, "Decode failed: %x\n", err);
-			continue;
+			status = 1;
+			break;
 		}
 		if (!wav) {
 			CStreamInfo *info = aacDecoder_GetStreamInfo(handle);
 			if (!info || info->sampleRate <= 0) {
 				fprintf(stderr, "No stream info\n");
+				status = 1;
 				break;
 			}
 			frame_size = info->frameSize * info->numChannels;
@@ -121,6 +124,7 @@ int main(int argc, char *argv[]) {
 			wav = wav_write_open(outfile, info->sampleRate, 16, info->numChannels);
 			if (!wav) {
 				perror(outfile);
+				status = 1;
 				break;
 			}
 		}
@@ -137,6 +141,6 @@ int main(int argc, char *argv[]) {
 	if (wav)
 		wav_write_close(wav);
 	aacDecoder_Close(handle);
-	return 0;
+	return status;
 }
 
