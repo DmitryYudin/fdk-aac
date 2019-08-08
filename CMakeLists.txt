@@ -245,28 +245,36 @@ target_include_directories(fdk-aac PUBLIC
 # Tests
 #
 if(${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
+	add_subdirectory(ffmpeg)
+	message(STATUS "FFmpeg preconfigured files reside locally in '${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg' folder")
+
     add_executable(aac-enc)
     add_executable(aac-dec)
     add_executable(test-encode-decode)
+    add_executable(m4a-dec)
 
     set(aac_enc_SOURCES aac-enc.c wavreader.c)
     set(aac_dec_SOURCES aac-dec.c wavwriter.c)
     set(test_encode_decode_SOURCES test-encode-decode.c wavreader.c)
+    set(m4a_dec_SOURCES m4a-dec wavwriter.c)
 
     target_sources(aac-enc PRIVATE ${aac_enc_SOURCES})
     target_sources(aac-dec PRIVATE ${aac_dec_SOURCES})
     target_sources(test-encode-decode PRIVATE ${test_encode_decode_SOURCES})
+    target_sources(m4a-dec PRIVATE ${m4a_dec_SOURCES})
 
     target_include_directories(aac-enc PRIVATE win32)
     target_include_directories(aac-dec PRIVATE win32)
     target_include_directories(test-encode-decode PRIVATE win32)
+    target_include_directories(m4a-dec PRIVATE win32)
 
     target_compile_definitions(aac-enc PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_compile_definitions(aac-dec PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_compile_definitions(test-encode-decode PRIVATE _CRT_SECURE_NO_WARNINGS)
+    target_compile_definitions(m4a-dec PRIVATE _CRT_SECURE_NO_WARNINGS)
 
     target_link_libraries(aac-enc fdk-aac)
     target_link_libraries(aac-dec fdk-aac)
     target_link_libraries(test-encode-decode fdk-aac)
+    target_link_libraries(m4a-dec fdk-aac libavformat libavutil libavcodec)
 endif()
-
