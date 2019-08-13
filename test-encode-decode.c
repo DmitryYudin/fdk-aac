@@ -297,7 +297,7 @@ static int test_encode_decode(const char *infile, int aot, int afterburner, int 
 	}
 	avg_diff = 0;
 	if (diff_samples > 0)
-		avg_diff = diff_sum / diff_samples;
+		avg_diff = (int) (diff_sum / diff_samples);
 	if (/*max_diff > 7000 ||*/ avg_diff > ((aot == 23) ? 2500 : (aot == 29) ? 1000 : 300)) {
 		fprintf(stderr, "max_diff %d, avg_diff %d\n", max_diff, avg_diff);
 		ret = 1;

@@ -186,7 +186,7 @@ int wav_read_data(void* obj, unsigned char* data, unsigned int length) {
 		return -1;
 	if (length > wr->data_length && !wr->streamed)
 		length = wr->data_length;
-	n = fread(data, 1, length, wr->wav);
+	n = (int)fread(data, 1, length, wr->wav);
 	wr->data_length -= length;
 	return n;
 }
