@@ -46,8 +46,7 @@ int main(int argc, char *argv[]) {
 	FILE *in = NULL;
 	void *wav = NULL;
 	int output_size;
-	uint8_t *output_buf = NULL;
-	int16_t *decode_buf = NULL;
+	INT_PCM *decode_buf = NULL;
 	HANDLE_AACDECODER handle = NULL;
 	int frame_size = 0;
 	int status = 0;
@@ -113,12 +112,11 @@ int main(int argc, char *argv[]) {
 	}
 
 	output_size = 8*2*2048;
-	output_buf = (uint8_t*) malloc(output_size);
-	decode_buf = (int16_t*) malloc(output_size);
+	decode_buf = (INT_PCM*) malloc(output_size/sizeof(INT_PCM));
 
 	while (1) {
 		uint8_t packet[32768/2], *ptr = packet;
-		int n, i;
+		int n;
 		UINT valid, packet_size;
 		AAC_DECODER_ERROR err;
 		n = (int)fread(packet, 1, sizeof(packet), in);
@@ -163,7 +161,7 @@ int main(int argc, char *argv[]) {
 				}
 				frame_size = info->frameSize * info->numChannels;
 				// Note, this probably doesn't return channels > 2 in the right order for wav
-				wav = wav_write_open(outfile, info->sampleRate, 16, info->numChannels);
+				wav = wav_write_open(outfile, info->sampleRate, sizeof(INT_PCM)*8, info->numChannels);
 				if (!wav) {
 					fprintf(stderr, "Error: Failed writing output file: '%s'\n", outfile);
 					status = 1;
@@ -171,12 +169,8 @@ int main(int argc, char *argv[]) {
 				}
 				samples_decoded += frame_size;
 			}
-			for (i = 0; i < frame_size; i++) {
-				uint8_t* out = &output_buf[2*i];
-				out[0] = decode_buf[i] & 0xff;
-				out[1] = decode_buf[i] >> 8;
-			}
-			wav_write_data(wav, output_buf, 2*frame_size);
+
+			wav_write_data(wav, (uint8_t*)decode_buf, sizeof(INT_PCM)*frame_size);
 		}
 	}
 end:
@@ -184,8 +178,6 @@ end:
 		fprintf(stderr, "Error: No samples decoded. Perhaps wrong input format.\n");
 		status = 1;
 	}
-	if(output_buf)
-		free(output_buf);
 	if (decode_buf)
 		free(decode_buf);
 	if (in)
