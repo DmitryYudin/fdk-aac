@@ -114,7 +114,8 @@ amm-info@iis.fraunhofer.de
 #define __x86__
 #endif
 
-#if defined(_M_ARM) && !defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64)
+#if defined(_M_ARM) && !defined(__arm__) || defined(__aarch64__) || \
+    defined(_M_ARM64)
 #define __arm__
 #endif
 

@@ -361,22 +361,27 @@ void initSlotBasedRotation(
     /* ScaleR and ScaleL are scaled by 1 shift right */
 
     ScaleL = ScaleR = 0;
-    if (noIidSteps + h_ps_d->specificTo.mpeg.pCoef->aaIidIndexMapped[env][bin] >= 0 && noIidSteps + h_ps_d->specificTo.mpeg.pCoef->aaIidIndexMapped[env][bin] < noFactors)
+    if (noIidSteps +
+                h_ps_d->specificTo.mpeg.pCoef->aaIidIndexMapped[env][bin] >=
+            0 &&
+        noIidSteps + h_ps_d->specificTo.mpeg.pCoef->aaIidIndexMapped[env][bin] <
+            noFactors)
       ScaleR = PScaleFactors[noIidSteps + h_ps_d->specificTo.mpeg.pCoef
                                               ->aaIidIndexMapped[env][bin]];
-    if (noIidSteps - h_ps_d->specificTo.mpeg.pCoef->aaIidIndexMapped[env][bin] >= 0 && noIidSteps - h_ps_d->specificTo.mpeg.pCoef->aaIidIndexMapped[env][bin] < noFactors)
+    if (noIidSteps -
+                h_ps_d->specificTo.mpeg.pCoef->aaIidIndexMapped[env][bin] >=
+            0 &&
+        noIidSteps - h_ps_d->specificTo.mpeg.pCoef->aaIidIndexMapped[env][bin] <
+            noFactors)
       ScaleL = PScaleFactors[noIidSteps - h_ps_d->specificTo.mpeg.pCoef
                                               ->aaIidIndexMapped[env][bin]];
 
     AlphasValue = 0;
     if (h_ps_d->specificTo.mpeg.pCoef->aaIccIndexMapped[env][bin] >= 0)
-      AlphasValue = Alphas[h_ps_d->specificTo.mpeg.pCoef->aaIccIndexMapped[env][bin]];
-    Beta = fMult(
-        fMult(AlphasValue,
-              (ScaleR - ScaleL)),
-        FIXP_SQRT05);
-    Alpha =
-        AlphasValue >> 1;
+      AlphasValue =
+          Alphas[h_ps_d->specificTo.mpeg.pCoef->aaIccIndexMapped[env][bin]];
+    Beta = fMult(fMult(AlphasValue, (ScaleR - ScaleL)), FIXP_SQRT05);
+    Alpha = AlphasValue >> 1;
 
     /* Alpha and Beta are now both scaled by 2 shifts right */
 
