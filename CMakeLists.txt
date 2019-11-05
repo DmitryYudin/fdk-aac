@@ -52,8 +52,8 @@ target_include_directories(fdk-aac PUBLIC
 # Tests
 #
 if(${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
-	add_subdirectory(ffmpeg)
-	message(STATUS "FFmpeg preconfigured files reside locally in '${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg' folder")
+	message(STATUS "Using preconfigured FFmpeg library")
+	add_subdirectory(../ffmpeg-builder third_party/ffmpeg)
 
     set(aac-enc_SRC aac-enc.c wavreader.c)
     set(aac-dec_SRC aac-dec.c wavwriter.c)
@@ -75,6 +75,6 @@ if(${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
 	    target_link_libraries(${X} fdk-aac)
 	endforeach()
 
-    target_link_libraries(m4a-dec libavformat libavutil libavcodec)
-    target_link_libraries(m4a-enc libavformat libavutil libavcodec)
+    target_link_libraries(m4a-dec libavformat libavcodec libavutil)
+    target_link_libraries(m4a-enc libavformat libavcodec libavutil)
 endif()
